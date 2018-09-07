@@ -210,43 +210,34 @@ function _step!(env::MultiagentNGSIMEnv, action::Array{Float64})
     	# replace the original with the controlled vehicle
         env.scene[vehidx] = env.ego_vehs[i]
 
-        # Raunak testing how to access lane id
-        # Commented out for now as not relevant to reward augmentation
-        # lane4print = env.ego_vehs[i].state.posF.roadind.tag.lane
-        # println("Lane number = $lane4print")
     end
 
     # update rec with current scene 
     update!(env.rec, env.scene)
 
-    # Raunak adds in original vehicle properties
+    # Collect information for calculation of metrics
+    # Note that these are not used in the training process
     step_infos = Dict{String, Vector{Float64}}(
         "rmse_pos"=>Float64[],
         "rmse_vel"=>Float64[],
         "rmse_t"=>Float64[],
-        "x"=>Float64[],
-        "y"=>Float64[],
-        "s"=>Float64[],
-        "phi"=>Float64[],
-        "orig_x"=>Float64[],
-        "orig_y"=> Float64[],
-        "orig_theta"=>Float64[],
-        "orig_length"=>Float64[],
-        "orig_width"=>Float64[]
+	"laneNum"=>Float64[] # Raunak adding this for lane change rate emergent metric
+
+	# Raunak: Commenting these guys out as not sure where they are being used
+	#"x"=>Float64[],
+        #"y"=>Float64[],
+        #"s"=>Float64[],
+        #"phi"=>Float64[],
     )
     for i in 1:env.n_veh
         push!(step_infos["rmse_pos"], sqrt(abs2((orig_vehs[i].state.posG - env.ego_vehs[i].state.posG))))
         push!(step_infos["rmse_vel"], sqrt(abs2((orig_vehs[i].state.v - env.ego_vehs[i].state.v))))
         push!(step_infos["rmse_t"], sqrt(abs2((orig_vehs[i].state.posF.t - env.ego_vehs[i].state.posF.t))))
-        push!(step_infos["x"], env.ego_vehs[i].state.posG.x)
-        push!(step_infos["y"], env.ego_vehs[i].state.posG.y)
-        push!(step_infos["s"], env.ego_vehs[i].state.posF.s)
-        push!(step_infos["phi"], env.ego_vehs[i].state.posF.ϕ)
-        push!(step_infos["orig_x"], orig_vehs[i].state.posG.x)
-        push!(step_infos["orig_y"], orig_vehs[i].state.posG.y)
-        push!(step_infos["orig_theta"], orig_vehs[i].state.posG.θ)
-        push!(step_infos["orig_length"], orig_vehs[i].def.length)
-        push!(step_infos["orig_width"], orig_vehs[i].def.width)
+	push!(step_infos["laneNum"], env.ego_vehs[i].state.posF.roadind.tag.lane)
+	#push!(step_infos["x"], env.ego_vehs[i].state.posG.x)
+        #push!(step_infos["y"], env.ego_vehs[i].state.posG.y)
+        #push!(step_infos["s"], env.ego_vehs[i].state.posF.s)
+        #push!(step_infos["phi"], env.ego_vehs[i].state.posF.ϕ)
     end
 
     return step_infos
@@ -358,75 +349,8 @@ Args:
 Returns:
     - img: returns a (height, width, channel) image to display
 =#
-#function render(
-#        env::MultiagentNGSIMEnv; 
-#        egocolor::Vector{Float64}=[0.,0.,1.],
-#        camtype::String="follow",
-#        static_camera_pos::Vector{Float64}=[0.,0.],
-#        camera_rotation::Float64=0.,
-#        canvas_height::Int=800,
-#        canvas_width::Int=800)
-#    # define colors for all the vehicles
-#    println("Default version of render")
-#    carcolors = Dict{Int,Colorant}()
-#    egocolor = ColorTypes.RGB(egocolor...)
-#    for veh in env.scene
-#        carcolors[veh.id] = in(veh.id, env.egoids) ? egocolor : colorant"green"
-#    end
-#
-#    # define a camera following the ego vehicle
-#    if camtype == "follow"
-#        # follow the first vehicle in the scene
-#        cam = AutoViz.CarFollowCamera{Int}(env.egoids[1], env.render_params["zoom"])
-#    elseif camtype == "static"
-#        cam = AutoViz.StaticCamera(VecE2(static_camera_pos...), env.render_params["zoom"])
-#    else
-#        error("invalid camera type $(camtype)")
-#    end
-#    stats = [
-#        CarFollowingStatsOverlay(env.egoids[1], 2), 
-#        NeighborsOverlay(env.egoids[1], textparams = TextParams(x = 600, y_start=300))
-#    ]
-#
-#    # rendermodel for optional rotation
-#    # note that for this to work, you have to comment out a line in AutoViz
-#    # src/overlays.jl:27 `clear_setup!(rendermodel)` in render
-#    rendermodel = RenderModel()
-#    camera_rotate!(rendermodel, deg2rad(camera_rotation))
-#
-#    # render the frame
-#    frame = render(
-#        env.scene, 
-#        env.roadway,
-#        stats, 
-#        rendermodel = rendermodel,
-#        cam = cam, 
-#        car_colors = carcolors,
-#        canvas_height=canvas_height,
-#        canvas_width=canvas_width
-#    )
-#
-#    # save the frame 
-#    if !isdir(env.render_params["viz_dir"])
-#        mkdir(env.render_params["viz_dir"])
-#    end
-#    ep_dir = joinpath(env.render_params["viz_dir"], "episode_$(env.epid)")
-#    if !isdir(ep_dir)
-#        mkdir(ep_dir)
-#    end
-#    filepath = joinpath(ep_dir, "step_$(env.t).png")
-#    write_to_png(frame, filepath)
-#
-#    # load and return the frame as an rgb array
-#    img = PyPlot.imread(filepath)
-#    return img
-#end
-#
-
-# Raunak defined this render function to enable color changing based on collisions and offroads
 function render(
-        env::MultiagentNGSIMEnv;
-	infos=Dict(),
+        env::MultiagentNGSIMEnv; 
         egocolor::Vector{Float64}=[0.,0.,1.],
         camtype::String="follow",
         static_camera_pos::Vector{Float64}=[0.,0.],
@@ -434,15 +358,9 @@ function render(
         canvas_height::Int=800,
         canvas_width::Int=800)
     # define colors for all the vehicles
+    println("Default version of render")
     carcolors = Dict{Int,Colorant}()
     egocolor = ColorTypes.RGB(egocolor...)
-    if infos["is_colliding"][1] == 1.0
-    	    egocolor = ColorTypes.RGB([1.,0.,0.]...)
-    end
-
-    if infos["is_offroad"][1] == 1.0
-    	    egocolor = ColorTypes.RGB([1.,1.,0.]...)
-    end
     for veh in env.scene
         carcolors[veh.id] = in(veh.id, env.egoids) ? egocolor : colorant"green"
     end
@@ -456,17 +374,10 @@ function render(
     else
         error("invalid camera type $(camtype)")
     end
-    
-    # Raunak video plotting the ghost vehicle
-    overlays = [
+    stats = [
         CarFollowingStatsOverlay(env.egoids[1], 2), 
-        OrigVehicleOverlay(infos["orig_x"][1],
-                            infos["orig_y"][1],
-                            infos["orig_theta"][1],
-                            infos["orig_length"][1],
-                            infos["orig_width"][1])
+        NeighborsOverlay(env.egoids[1], textparams = TextParams(x = 600, y_start=300))
     ]
-
 
     # rendermodel for optional rotation
     # note that for this to work, you have to comment out a line in AutoViz
@@ -478,7 +389,7 @@ function render(
     frame = render(
         env.scene, 
         env.roadway,
-        overlays, 
+        stats, 
         rendermodel = rendermodel,
         cam = cam, 
         car_colors = carcolors,
@@ -501,7 +412,3 @@ function render(
     img = PyPlot.imread(filepath)
     return img
 end
-
-# Raunak tried to add the original vehicle as a ghost car in the video heere, but
-# Errored out when defined here. Worked fine when defined within AutoViz/src/2d/Overlays.jl
-# which is the same location where CarFollowingStatsOverlay is defined
