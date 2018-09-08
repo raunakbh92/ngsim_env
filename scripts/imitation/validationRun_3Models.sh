@@ -12,7 +12,7 @@ REWARD=0
 for num in 1; 
 do
     model=${BASE_NAME}_${REWARD}_${num}_fine
-    python validate.py --n_proc 7 --exp_dir ../../data/experiments/${model}/ \
+    python validate.py --n_proc 2 --exp_dir ../../data/experiments/${model}/ \
         --params_filename itr_200.npz --use_multiagent True --random_seed 3 --n_envs 100 
 
 done
@@ -20,7 +20,7 @@ done
 for num in 2; 
 do
     model=${BASE_NAME}_${REWARD}_${num}_fine
-    python validate.py --n_proc 7 --exp_dir ../../data/experiments/${model}/ \
+    python validate.py --n_proc 2 --exp_dir ../../data/experiments/${model}/ \
         --params_filename itr_200.npz --use_multiagent True --random_seed 3 --n_envs 100 
 
 done
@@ -28,7 +28,7 @@ done
 for num in 3; 
 do
     model=${BASE_NAME}_${REWARD}_${num}_fine
-    python validate.py --n_proc 7 --exp_dir ../../data/experiments/${model}/ \
+    python validate.py --n_proc 2 --exp_dir ../../data/experiments/${model}/ \
         --params_filename itr_200.npz --use_multiagent True --random_seed 3 --n_envs 100 
 
 done
