@@ -1,5 +1,5 @@
-using Multilane
 using POMDPs
+using Multilane
 
 solver = SimpleSolver()
 
@@ -22,20 +22,23 @@ policy = solve(solver, mdp)
 
 ## This code won't actually be run; it's just to show you how to make a MLPhysicalState. 
 ## The actual values will be from the python code
-seed = parse(Int64,ARGS[1])
+
+
+#seed = parse(Int64,ARGS[1]) # Reading seed in as input argument
+seed = 4 # Hard coding for test from python
 println("seed = $seed")
 
 
 srand(seed)
 n = 5
-# x locations of n cars
+# x locations of n cars *relative to reference point*
 xs = rand(5).* 100.0
-# y locations of n cars # in lane coordinates; not 
+# y locations of n cars # in lane units; not meters 
 ys = rand(5).* 4
 # velocities of n cars
 vels = 1.0*randn(5).+ 30.0
 
-x = 150.0 # distance of ego car down the road
+x = 150.0 # *absolute* distance of ego car down the road
 t = x/30.0 # elapsed time
 egostate = CarPhysicalState(50.0, 0.0, 30.0, 0.0, 1) # ego state always has the same x because  
 state = MLPhysicalState(x, t, [egostate], nothing)
