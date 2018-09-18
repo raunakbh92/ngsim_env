@@ -41,6 +41,21 @@ type MultiagentNGSIMEnvVideoMaker <: Env
     epid::Int # episode id
     render_params::Dict # rendering options
     infos_cache::Dict # cache for infos intermediate results
+
+    #----- Zach stuff----
+    solver::Solver
+    #cor::Float64
+    #behaviors
+    #pp::PhysicalParam
+    #dmodel::NoCrashIDMMOBILModel
+    #rmodel::SuccessReward
+    #pomdp::NoCrashPOMDP
+    #mdp::NoCrashMDP
+    #policy
+    ##--------------------
+
+
+    
     function MultiagentNGSIMEnvVideoMaker(
             params::Dict; 
             trajdatas::Union{Void, Vector{ListRecord}} = nothing,
@@ -98,6 +113,21 @@ type MultiagentNGSIMEnvVideoMaker <: Env
             n_veh, remove_ngsim_veh, features,
             0, render_params, infos_cache
         )
+
+	#----------------Zach-------------------------------------------
+	solver = SimpleSolver()
+	#cor = 0.75
+	#behaviors = standard_uniform(correlation=cor)
+	#pp = PhysicalParam(4, lane_length=100.0)
+	#dmodel = NoCrashIDMMOBILModel(10,pp,behaviors=behaviors,p_appear=1.0,
+	#			      lane_terminate=true,max_dist=1000.0,
+	#			      brake_terminate_thresh=4.0,
+	#			      speed_terminate_thresh=15.0)
+	#rmodel = SuccessReward(lambda=0)
+	#pomdp = NoCrashPOMDP{typeof(rmodel), typeof(behaviors)}(dmodel, rmodel, 0.95, false)
+	#mdp = NoCrashMDP{typeof(rmodel), typeof(behaviors)}(dmodel, rmodel, 0.95, false)
+	#policy = sovle(solver,mdp)
+	##-----------------------------------------------------------------
     end
 end
 
@@ -183,7 +213,43 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
     for (i, ego_veh) in enumerate(env.ego_vehs)
         # convert action into form 
 	ego_action = AccelTurnrate(action[i,:]...)
-        # propagate the ego vehicle 
+
+	#--------------------ZACH--------------------------
+	if i==1
+		println("\nHey car 1")
+		println("yo there")
+		
+		envFlds = fieldnames(env)
+		println("flds of env are\n: $(envFlds)")
+		
+		println("This is n_veh type $(typeof(env.n_veh))")
+
+		println("This is solver type $(typeof(env.solver))")
+		seed = 4
+		srand(seed)
+		println("Hey again")
+		n=5
+		xs=rand(5).*100.0
+		ys=rand(5).*4
+		vels=1.0*randn(5).+30.0
+
+		x=150.0
+		t = x/30.0
+		egostate = CarPhysicalState(50.0,0.0,30.0,0.0,1)
+		state=MLPhysicalState(x,t,[egostate],nothing)
+
+		for j in 1:n
+			cs = CarPhysicalState(xs[j], ys[j], vels[j], 0.0, j+1)
+			push!(state.cars,cs)
+		end
+
+		a = action(env.policy,state)
+		@show a
+
+	end
+	#--------------------------------------------------
+
+	# propagate the ego vehicle 
         ego_states[i] = propagate(
             ego_veh, 
             ego_action, 
