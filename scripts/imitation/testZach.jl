@@ -42,14 +42,20 @@ x = 150.0 # *absolute* distance of ego car down the road
 t = x/30.0 # elapsed time
 egostate = CarPhysicalState(50.0, 0.0, 30.0, 0.0, 1) # ego state always has the same x because  
 state = MLPhysicalState(x, t, [egostate], nothing)
+
 for i in 1:n
 	cs = CarPhysicalState(xs[i], ys[i], vels[i], 0.0, i+1)
-	        push!(state.cars, cs)
-	end
+	push!(state.cars, cs)
+end
+
+println("Here are the states \n")
+@show state
+
+println("Here is the policy \n")
+@show policy
 
 # get an action from the policy
 a = action(policy, state)
-
 @show a
 
 # From Zach meeting for video making and running an entire sim using the policy

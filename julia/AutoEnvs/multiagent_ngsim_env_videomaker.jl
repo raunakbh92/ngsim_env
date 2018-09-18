@@ -281,17 +281,20 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		
 		println("\nHey again")
 		egostate = CarPhysicalState(50.0,0.0,30.0,0.0,1)
-		@show egostate
+		#@show egostate
 		state=MLPhysicalState(x,t,[egostate],nothing)
-		@show state
+		#@show state
 		for j in 1:n
 			cs = CarPhysicalState(xs[j], ys[j], vels[j], 0.0, j+1)
 			push!(state.cars,cs)
 		end
 
 		@show state
+		@show env.policy
 
-		a = action(env.policy,state)
+		@show POMDPs.action
+
+		a = POMDPs.action(env.policy,state)
 		@show a
 
 	end
