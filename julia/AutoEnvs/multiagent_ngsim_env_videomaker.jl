@@ -1,3 +1,8 @@
+# ----Not sure whether to have the bottom in AutoEnvs.jl or here--------
+#using POMDPs
+#using Multilane
+#--------------------------------------------------------------------
+
 export 
     MultiagentNGSIMEnvVideoMaker,
     reset,
@@ -44,14 +49,14 @@ type MultiagentNGSIMEnvVideoMaker <: Env
 
     #----- Zach stuff----
     solver::Solver
-    #cor::Float64
-    #behaviors
-    #pp::PhysicalParam
-    #dmodel::NoCrashIDMMOBILModel
-    #rmodel::SuccessReward
-    #pomdp::NoCrashPOMDP
-    #mdp::NoCrashMDP
-    #policy
+    cor::Float64
+    behaviors
+    pp::PhysicalParam
+    dmodel::NoCrashIDMMOBILModel
+    rmodel::SuccessReward
+    pomdp::NoCrashPOMDP
+    mdp::NoCrashMDP
+    policy
     ##--------------------
 
 
@@ -67,8 +72,11 @@ type MultiagentNGSIMEnvVideoMaker <: Env
             H::Int = 50,
             n_veh::Int = 20,
             remove_ngsim_veh::Bool = false,
-            render_params::Dict = Dict("zoom"=>5., "viz_dir"=>"/tmp"))
-        param_keys = keys(params)
+            render_params::Dict = Dict("zoom"=>5., "viz_dir"=>"/tmp") 
+	    )
+        
+	    
+	param_keys = keys(params)
         @assert in("trajectory_filepaths", param_keys)
 
         # optionally overwrite defaults
@@ -101,6 +109,24 @@ type MultiagentNGSIMEnvVideoMaker <: Env
         features = zeros(n_veh, length(ext))
         egoids = zeros(n_veh)
         ego_vehs = [nothing for _ in 1:n_veh]
+
+	#--------------Zach stuff
+	solver = SimpleSolver()
+	cor = 0.75
+	behaviors = standard_uniform(correlation=cor)
+	pp = PhysicalParam(4, lane_length=100.0)
+	dmodel = NoCrashIDMMOBILModel(10,pp,behaviors=behaviors,p_appear=1.0,
+				      lane_terminate=true,max_dist=1000.0,
+				      brake_terminate_thresh=4.0,
+				      speed_terminate_thresh=15.0)
+	rmodel = SuccessReward(lambda=0)
+	pomdp = NoCrashPOMDP{typeof(rmodel), typeof(behaviors)}(dmodel, rmodel, 0.95, false)
+	mdp = NoCrashMDP{typeof(rmodel), typeof(behaviors)}(dmodel, rmodel, 0.95, false)
+	policy = solve(solver,mdp)
+
+	#--------------------------------
+
+
         return new(
             trajdatas, 
             trajinfos, 
@@ -112,10 +138,18 @@ type MultiagentNGSIMEnvVideoMaker <: Env
             egoids, ego_vehs, 0, 0, 0, H, primesteps, Δt, 
             n_veh, remove_ngsim_veh, features,
             0, render_params, infos_cache
+	    #-----------Zach-------------------------------------------
+	    ,solver,cor,behaviors,pp,dmodel,rmodel,pomdp,mdp,policy
+	    #----------------------------------------------------------
         )
 
 	#----------------Zach-------------------------------------------
-	solver = SimpleSolver()
+	# Raunak: Giving initial value to these guys here has no meaning
+	# Give them either in the constructor argument
+	# Or include them in the return thing from this function
+
+
+	#solver = SimpleSolver()
 	#cor = 0.75
 	#behaviors = standard_uniform(correlation=cor)
 	#pp = PhysicalParam(4, lane_length=100.0)
@@ -216,18 +250,27 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 
 	#--------------------ZACH--------------------------
 	if i==1
-		println("\nHey car 1")
-		println("yo there")
+		#println("\nHey car 1")
+		#println("yo there")
 		
-		envFlds = fieldnames(env)
-		println("flds of env are\n: $(envFlds)")
+		#envFlds = fieldnames(env)
+		#println("flds of env are\n: $(envFlds)")
 		
-		println("This is n_veh type $(typeof(env.n_veh))")
+		#println("This is n_veh type $(typeof(env.n_veh))")
 
-		println("This is solver type $(typeof(env.solver))")
+		#println("This is solver type $(typeof(env.solver)) and value $(env.solver)")
+		#println("This is cor type $(typeof(env.cor)) and value $(env.cor)")
+		#println("This is beh type $(typeof(env.behaviors)) and value $(env.behaviors)")
+		#println("This is pp type $(typeof(env.pp)) and value $(env.pp)")
+		#println("This is dmodel type $(typeof(env.dmodel)) and value $(env.dmodel)")
+		#println("This is rmodel type $(typeof(env.rmodel)) and value $(env.rmodel)")
+		#println("This is pomdp type $(typeof(env.pomdp)) and value $(env.pomdp)")
+		#println("This is mdp type $(typeof(env.mdp)) and value $(env.mdp)")
+		#@show env.mdp
+		#@show env.policy
+
 		seed = 4
 		srand(seed)
-		println("Hey again")
 		n=5
 		xs=rand(5).*100.0
 		ys=rand(5).*4
@@ -235,13 +278,18 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 
 		x=150.0
 		t = x/30.0
+		
+		println("\nHey again")
 		egostate = CarPhysicalState(50.0,0.0,30.0,0.0,1)
+		@show egostate
 		state=MLPhysicalState(x,t,[egostate],nothing)
-
+		@show state
 		for j in 1:n
 			cs = CarPhysicalState(xs[j], ys[j], vels[j], 0.0, j+1)
 			push!(state.cars,cs)
 		end
+
+		@show state
 
 		a = action(env.policy,state)
 		@show a
