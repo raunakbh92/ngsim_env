@@ -247,8 +247,16 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
     for (i, ego_veh) in enumerate(env.ego_vehs)
         # convert action into form 
 	ego_action = AccelTurnrate(action[i,:]...)
-
+	
+	
 	#--------------------ZACH--------------------------
+	#@show typeof(action[i,:])	
+	#@show action[i,:]
+	#@show AccelTurnrate
+	#@show typeof(ego_action)
+	#@show ego_action
+	#@show fieldnames(ego_action)
+	#
 	if i==1
 		#println("\nHey car 1")
 		#println("yo there")
@@ -268,8 +276,15 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		#println("This is mdp type $(typeof(env.mdp)) and value $(env.mdp)")
 		#@show env.mdp
 		#@show env.policy
-
-		seed = 4
+		
+		
+#		@show i	
+#		@show ego_veh
+#		@show fieldnames(ego_veh)
+#		@show typeof(ego_veh)
+#		@show ego_veh.id
+#
+		seed = 15
 		srand(seed)
 		n=5
 		xs=rand(5).*100.0
@@ -289,13 +304,21 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 			push!(state.cars,cs)
 		end
 
-		@show state
-		@show env.policy
-
-		@show POMDPs.action
-
-		a = POMDPs.action(env.policy,state)
-		@show a
+#		@show state
+#		@show env.policy
+#		@show POMDPs.action
+#
+		planner_action = POMDPs.action(env.policy,state)
+		planner_accl = planner_action.acc
+		planner_ydot = planner_action.lane_change
+		#@show typeof(planner_action)
+		#@show planner_action
+		
+		#@show planner_accl
+		#@show planner_ydot
+		
+		ego_action = AccelTurnrate([planner_accl, planner_ydot]...)
+		#@show ego_action
 
 	end
 	#--------------------------------------------------
@@ -545,6 +568,12 @@ function render(
 	# If current vehicle is a policy driven vehicle then color it blue otherwise color it green
 	carcolors[veh.id] = in(veh.id, env.egoids) ? egocolor : colorant"green"
 	
+	# ----------------ZACH------------------------
+	if veh.id == 2582
+		carcolors[veh.id] = colorant"yellow"
+	end
+	#--------------------------------------
+
 	# If the current vehicle is in the list of colliding vehicles color it red
 	if in(veh.id,infos["colliding_veh_ids"])
 		carcolors[veh.id] = ColorTypes.RGB([1.,0.,0.]...)
