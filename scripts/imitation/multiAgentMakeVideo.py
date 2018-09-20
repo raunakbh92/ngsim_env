@@ -54,9 +54,10 @@ def mutliagent_simulate(env, policy, max_steps, env_kwargs=dict(), render_kwargs
         a, a_info = policy.get_actions(x)
         
         #************************** Raunak tinkering
+        #print("action shape = ",a.shape)
         #print(a[0][1])
         #a[0][0] = - 1.0  # Slows car down and then makes it drive in reverse
-        #a[0][1] = - 1.0   # Turns car to the right
+        a[0][1] = - 2.0   # Turns car to the right
         #*************************************************
         nx, r, dones, e_info = env.step(a)
         traj.add(x, a, r, a_info, e_info)
@@ -168,10 +169,10 @@ def create_render_map(model_labels, model_args_filepaths, model_params_filepaths
 #-----------------------------------------------------------------------------
 def do_it_all_once(model_labels, model_args_filepaths, model_params_filepaths,
                    multi=False, name='single_multi', single_multi_comp=1, rand=None, n_vehs=None,
-                  remove_ngsim=False):
+                  remove_ngsim=False,horizon=200):
     #do this with just 2 models at a time.
     print("creating render map for: ", "; ".join(model_labels))
-    render_map = create_render_map(model_labels, model_args_filepaths, model_params_filepaths, multi,rand, n_vehs=n_vehs, remove_ngsim=remove_ngsim)
+    render_map = create_render_map(model_labels, model_args_filepaths, model_params_filepaths, multi,rand,max_steps=horizon, n_vehs=n_vehs, remove_ngsim=remove_ngsim)
     imgs = [np.concatenate((a), 0) for (a) in zip(*[render_map[i] for i in model_labels])]
     fig, ax = plt.subplots(figsize=(16,16))
     plt.title(name)
@@ -215,5 +216,5 @@ for i in range(1):
                        name=name, 
                        single_multi_comp=j, 
                        rand=seed,
-                       n_vehs=100)
+                       n_vehs=100,horizon=50)
         print("\nDone once.\n")
