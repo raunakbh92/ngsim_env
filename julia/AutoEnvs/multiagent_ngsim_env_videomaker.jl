@@ -243,6 +243,10 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
     # make sure number of actions passed in equals number of vehicles
     @assert size(action, 1) == env.n_veh
     ego_states = Vector{VehicleState}(env.n_veh)
+    
+    #@show size(action)
+    #println("Here is the action from _step!\n")
+    #@show action
     # propagate all the vehicles and get their new states
     for (i, ego_veh) in enumerate(env.ego_vehs)
         # convert action into form 
@@ -250,40 +254,25 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 	
 	
 	#--------------------ZACH--------------------------
-	#@show typeof(action[i,:])	
-	#@show action[i,:]
-	#@show AccelTurnrate
-	#@show typeof(ego_action)
-	#@show ego_action
-	#@show fieldnames(ego_action)
-	#
+	
 	if i==1
-		#println("\nHey car 1")
+		#@show typeof(action[i,:])	
+		#@show action[i,:]
+		#@show AccelTurnrate
+		#@show typeof(ego_action)
+		#@show env.egoids
+		#@show ego_action
+		#@show fieldnames(ego_action)
+		##println("\nHey car 1")
 		#println("yo there")
 		
-		#envFlds = fieldnames(env)
-		#println("flds of env are\n: $(envFlds)")
+		#@show fieldnames(env)
 		
-		#println("This is n_veh type $(typeof(env.n_veh))")
-
-		#println("This is solver type $(typeof(env.solver)) and value $(env.solver)")
-		#println("This is cor type $(typeof(env.cor)) and value $(env.cor)")
-		#println("This is beh type $(typeof(env.behaviors)) and value $(env.behaviors)")
-		#println("This is pp type $(typeof(env.pp)) and value $(env.pp)")
-		#println("This is dmodel type $(typeof(env.dmodel)) and value $(env.dmodel)")
-		#println("This is rmodel type $(typeof(env.rmodel)) and value $(env.rmodel)")
-		#println("This is pomdp type $(typeof(env.pomdp)) and value $(env.pomdp)")
-		#println("This is mdp type $(typeof(env.mdp)) and value $(env.mdp)")
 		#@show env.mdp
 		#@show env.policy
 		
-		
-#		@show i	
-#		@show ego_veh
-#		@show fieldnames(ego_veh)
-#		@show typeof(ego_veh)
-#		@show ego_veh.id
-#
+		#@show ego_veh.id
+
 		seed = 15
 		srand(seed)
 		n=5
@@ -294,7 +283,7 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		x=150.0
 		t = x/30.0
 		
-		println("\nHey again")
+		#println("\nHey again")
 		egostate = CarPhysicalState(50.0,0.0,30.0,0.0,1)
 		#@show egostate
 		state=MLPhysicalState(x,t,[egostate],nothing)
@@ -304,10 +293,10 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 			push!(state.cars,cs)
 		end
 
-#		@show state
-#		@show env.policy
-#		@show POMDPs.action
-#
+		#@show state
+		#@show env.policy
+		#@show POMDPs.action
+
 		planner_action = POMDPs.action(env.policy,state)
 		planner_accl = planner_action.acc
 		planner_ydot = planner_action.lane_change
@@ -317,7 +306,10 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		#@show planner_accl
 		#@show planner_ydot
 		
-		ego_action = AccelTurnrate([planner_accl, planner_ydot]...)
+		#ego_action = AccelTurnrate([planner_accl, planner_ydot]...)
+		
+		#ego_action = AccelTurnrate([5.0, 0.0]...)
+		#println("ego_action after MLAction")
 		#@show ego_action
 
 	end
@@ -330,6 +322,7 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
             env.roadway, 
             env.Δt
         )
+	
         # update the ego_veh
         env.ego_vehs[i] = Entity(ego_veh, ego_states[i])
     end
@@ -352,38 +345,10 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 
         env.scene[vehidx] = env.ego_vehs[i]
 
-	# Raunak testing how to access lane id
-	# Commented out for now as not relevant to reward augmentation
-	# lane4print = env.ego_vehs[i].state.posF.roadind.tag.lane
-	# println("Lane number = $lane4print")
-
-	# Raunak's failed attempt at Ghost vehicle. The below treats both original
-	# and policy driven as real cars and ends up showing the both to be colliding
-	#push!(env.scene,env.ego_vehs[i])
     end
 
     # update rec with current scene 
     update!(env.rec, env.scene)
-
-    # compute info about the step
-#    step_infos = Dict{String, Vector{Float64}}(
-#        "rmse_pos"=>Float64[],
-#        "rmse_vel"=>Float64[],
-#        "rmse_t"=>Float64[],
-#        "x"=>Float64[],
-#        "y"=>Float64[],
-#        "s"=>Float64[],
-#        "phi"=>Float64[],
-#    )
-#    for i in 1:env.n_veh
-#        push!(step_infos["rmse_pos"], sqrt(abs2((orig_vehs[i].state.posG - env.ego_vehs[i].state.posG))))
-#        push!(step_infos["rmse_vel"], sqrt(abs2((orig_vehs[i].state.v - env.ego_vehs[i].state.v))))
-#        push!(step_infos["rmse_t"], sqrt(abs2((orig_vehs[i].state.posF.t - env.ego_vehs[i].state.posF.t))))
-#        push!(step_infos["x"], env.ego_vehs[i].state.posG.x)
-#        push!(step_infos["y"], env.ego_vehs[i].state.posG.y)
-#        push!(step_infos["s"], env.ego_vehs[i].state.posF.s)
-#        push!(step_infos["phi"], env.ego_vehs[i].state.posF.ϕ)
-#    end
 
     # Raunak adds in original vehicle properties
     step_infos = Dict{String, Vector{Float64}}(
@@ -435,17 +400,20 @@ function _extract_rewards(env::MultiagentNGSIMEnvVideoMaker, infos::Dict{String,
 end
 
 function Base.step(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
-    step_infos = _step!(env, action)
+	#println("\nHere is the action from step")
+	#@show action
+	
+	step_infos = _step!(env, action)
     
-    # compute features and feature_infos 
-    features = get_features(env)
-    feature_infos = _compute_feature_infos(env, features)
+	# compute features and feature_infos 
+	features = get_features(env)
+	feature_infos = _compute_feature_infos(env, features)
     
-    # combine infos 
-    infos = merge(step_infos, feature_infos)
+	# combine infos 
+	infos = merge(step_infos, feature_infos)
     
-    # update env timestep to be the next scene to load
-    env.t += 1
+	# update env timestep to be the next scene to load
+	env.t += 1
     
     # compute terminal
     terminal = env.t > env.h ? true : false
@@ -482,13 +450,6 @@ function _compute_feature_infos(env::MultiagentNGSIMEnvVideoMaker, features::Arr
     #println("env.infos_cache[is_colliding_idx]=$somethingelse")
 
     for i in 1:env.n_veh
-	# Raunak debugging
-	#println("i=$i\n")
-	#egoVehid = env.ego_vehs[i].id 
-	#println("egoVeh[i] = $egoVehid")
-	#infos_cache = env.infos_cache
-	#println("env.infos_cache = $infos_cache")
-	
 	is_colliding = features[i, env.infos_cache["is_colliding_idx"]]
 	#println("is_colliding=$is_colliding\n")
 	is_offroad = features[i, env.infos_cache["out_of_lane_idx"]]
@@ -500,15 +461,15 @@ function _compute_feature_infos(env::MultiagentNGSIMEnvVideoMaker, features::Arr
 	# Raunak adding list of colliding ego ids into the feature list that gets passed to render
 	if is_colliding==1
 		push!(feature_infos["colliding_veh_ids"],env.ego_vehs[i].id)
-		println("Collision has happened see red")
+		#println("Collision has happened see red")
 	end
 	if is_offroad==1
 		push!(feature_infos["offroad_veh_ids"],env.ego_vehs[i].id)
-		println("Offroad has happened see yellow")
+		#println("Offroad has happened see yellow")
 	end
 	if accel <= accel_thresh
 		push!(feature_infos["hardbrake_veh_ids"],env.ego_vehs[i].id)
-		println("Hard brake has happened see some color")
+		#println("Hard brake has happened see some color")
 	end
     end
     return feature_infos
@@ -517,17 +478,9 @@ end
 
 function AutoRisk.get_features(env::MultiagentNGSIMEnvVideoMaker)
     for (i, egoid) in enumerate(env.egoids)
-	#println("i=$i\n")
-	#println("egoid = $egoid\n")
 	veh_idx = findfirst(env.scene, egoid)
-	#println("veh_idx=$veh_idx")
 	pull_features!(env.ext, env.rec, env.roadway, veh_idx)
         env.features[i, :] = deepcopy(env.ext.features)
-
-	# Raunak checking whether lane_id got added as a feature
-	# Does changing code in the julia folder automatically reflect
-	#feature4print = env.ext.features
-	#println("features are $feature4print")
     end
     return deepcopy(env.features)
 end
@@ -571,6 +524,7 @@ function render(
 	# ----------------ZACH------------------------
 	if veh.id == 2582
 		carcolors[veh.id] = colorant"yellow"
+		#println("Coloring Zach car yellow")
 	end
 	#--------------------------------------
 
@@ -585,9 +539,9 @@ function render(
 	end
 
 	# If current vehicle is in the list of hard brakers then color it light blue
-	if in(veh.id,infos["hardbrake_veh_ids"])
-		carcolors[veh.id]=ColorTypes.RGB([0.,1.,1.]...)
-	end
+	#if in(veh.id,infos["hardbrake_veh_ids"])
+	#	carcolors[veh.id]=ColorTypes.RGB([0.,1.,1.]...)
+	#end
     end
 
     # define a camera following the ego vehicle
@@ -649,37 +603,3 @@ function render(
     img = PyPlot.imread(filepath)
     return img
 end
-
-# Raunak trying to add the original vehicle as a ghost car in the video
-# Erroring out when defined here. Worked fine when defined within AutoViz/src/2d/Overlays.jl
-# which is the same location where CarFollowingStatsOverlay is defined
-#mutable struct OrigVehicleOverlay <: SceneOverlay
-	# structure attributes here
-#	x::Float64
-#	y::Float64
-#	theta::Float64
-#	length::Float64
-#	width::Float64
-#	color::Colorant
-
-	# constructor function
-
-#	function OrigVehicleOverlay(x::Float64,y::Float64,theta::Float64,length::Float64,
-#				    width::Float64,color::Colorant=colorant"white")
-#	new(x,y,theta,length,width,color)
-#	end
-#end
-
-# Better have this function signature exactly same as CarFollowingStatsOverlay
-#function render!(rendermodel::RenderModel,overlay::OrigVehicleOverlay,scene::Scene, roadway::Roadway)
-#	verbose = true
-#	if verbose
-#		println("render! within OrigVehicleOverlay reporting here")
-#		x=overlay.x 
-#		y=overlay.y
-#		println("x=$x,y = $y")
-#	end
-#   add_instruction!(rendermodel, render_vehicle, (overlay.x, overlay.y, overlay.theta, 
-#						   overlay.length, overlay.width, overlay.color))
-#    return rendermodel
-#end

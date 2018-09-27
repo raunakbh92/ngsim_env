@@ -24,8 +24,8 @@ policy = solve(solver, mdp)
 ## The actual values will be from the python code
 
 
-#seed = parse(Int64,ARGS[1]) # Reading seed in as input argument
-seed = 4 # Hard coding for test from python
+seed = parse(Int64,ARGS[1]) # Reading seed in as input argument
+#seed = 4 # Hard coding for test from python
 println("seed = $seed")
 
 

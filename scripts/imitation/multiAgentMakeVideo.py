@@ -54,12 +54,16 @@ def mutliagent_simulate(env, policy, max_steps, env_kwargs=dict(), render_kwargs
         a, a_info = policy.get_actions(x)
         
         #************************** Raunak tinkering
-        #print("action shape = ",a.shape)
         #print(a[0][1])
-        #a[0][0] = - 1.0  # Slows car down and then makes it drive in reverse
-        a[0][1] = - 2.0   # Turns car to the right
+        a[0][0] =  5.0  # Slows car down and then makes it drive in reverse
+        #a[0][1] = - 2.0   # Turns car to the right
+        #print("videomaker action shape ",a.shape)
+        #print("action from python videomaker\n = ",a)
+
         #*************************************************
         nx, r, dones, e_info = env.step(a)
+        #print("Back to python after having run step")
+        
         traj.add(x, a, r, a_info, e_info)
 
         # Adding in the features as an argument to render 
@@ -216,5 +220,5 @@ for i in range(1):
                        name=name, 
                        single_multi_comp=j, 
                        rand=seed,
-                       n_vehs=100,horizon=50)
+                       n_vehs=100,horizon=100)
         print("\nDone once.\n")
