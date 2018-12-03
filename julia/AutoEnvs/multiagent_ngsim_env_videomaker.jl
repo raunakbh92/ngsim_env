@@ -112,6 +112,8 @@ type MultiagentNGSIMEnvVideoMaker <: Env
 
 	#--------------Zach stuff
 	solver = SimpleSolver()
+	# """SimpleSolver is defined in Multilane.jl/src/heuristics.jl"""
+
 	cor = 0.75
 	behaviors = standard_uniform(correlation=cor)
 	pp = PhysicalParam(4, lane_length=100.0)
@@ -247,6 +249,7 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
     #@show size(action)
     #println("Here is the action from _step!\n")
     #@show action
+
     # propagate all the vehicles and get their new states
     for (i, ego_veh) in enumerate(env.ego_vehs)
         # convert action into form 
@@ -272,6 +275,29 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		#@show env.policy
 		
 		#@show ego_veh.id
+		#@show ego_veh.state.posG
+		#@show ego_veh.state.posG.θ
+		#@show ego_veh.state.posG.x
+		#@show ego_veh.state.posG.y
+		#@show ego_veh.state.v
+
+		#println(ego_veh.state.posG.x,",",ego_veh.state.posG.y,",",ego_veh.state.posG.θ)
+		# """ To enable plotting on a spreadsheet"""
+		
+		#println(ego_veh.state.posF.s)
+		# """s gives distance along lane in the Frenet frame"""
+		
+		for veh in env.scene
+			#@show veh
+			#@show ego_veh.state.posG
+			#@show veh.state.posG
+			typeof(ego_veh)
+			distance = hypot(ego_veh.state.posG - veh.state.posG)
+			if distance < 100
+				@show ego_veh.state.posG
+				@show veh
+			end
+		end
 
 		seed = 15
 		srand(seed)
@@ -285,19 +311,25 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		
 		#println("\nHey again")
 		egostate = CarPhysicalState(50.0,0.0,30.0,0.0,1)
-		#@show egostate
+		# """CarPhysicalState is defined in Multilane.jl/src/MDP_types.jl
+		# The 5 elements in the struct are
+		# x (longitude), y (lane number), velocity, lane_change, id"""
+
+
 		state=MLPhysicalState(x,t,[egostate],nothing)
-		#@show state
+		# """MLPhysicalState is defined in Multilane.jl/src/MDP_types.jl
+		# The 4 elements in the struct are
+		# x (longitude), t (time), cars (an array of CarPhysicalStates,terminal"""
+
 		for j in 1:n
 			cs = CarPhysicalState(xs[j], ys[j], vels[j], 0.0, j+1)
 			push!(state.cars,cs)
 		end
 
-		#@show state
-		#@show env.policy
-		#@show POMDPs.action
-
 		planner_action = POMDPs.action(env.policy,state)
+		# planner_action is of type multilane.MLAction
+		# It has acc and ydot as the two things in it
+
 		planner_accl = planner_action.acc
 		planner_ydot = planner_action.lane_change
 		#@show typeof(planner_action)
@@ -306,7 +338,7 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		#@show planner_accl
 		#@show planner_ydot
 		
-		#ego_action = AccelTurnrate([planner_accl, planner_ydot]...)
+		ego_action = AccelTurnrate([planner_accl, planner_ydot]...)
 		
 		#ego_action = AccelTurnrate([5.0, 0.0]...)
 		#println("ego_action after MLAction")
@@ -326,6 +358,10 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
         # update the ego_veh
         env.ego_vehs[i] = Entity(ego_veh, ego_states[i])
     end
+
+    #@show env.scene
+    @show env.t
+
 
     # load the actual scene, and insert the vehicles into it
     get!(env.scene, env.trajdatas[env.traj_idx], env.t)
