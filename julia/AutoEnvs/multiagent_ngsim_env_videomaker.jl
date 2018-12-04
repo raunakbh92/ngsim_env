@@ -287,17 +287,50 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		#println(ego_veh.state.posF.s)
 		# """s gives distance along lane in the Frenet frame"""
 		
+		countVeh = 0
+		totalVeh = 0
 		for veh in env.scene
+			totalVeh+=1
 			#@show veh
 			#@show ego_veh.state.posG
 			#@show veh.state.posG
 			typeof(ego_veh)
 			distance = hypot(ego_veh.state.posG - veh.state.posG)
-			if distance < 100
+			
+			# Find cars within a radius of 50 m from Zach
+			if distance < 50
+				#@show ego_veh.state.posG
+				#@show veh
+				countVeh+=1
+
+				# Need to find the longitudinal distance of
+				# veh relative to 50 m behind ego and find the 
+				# lane unit relative to same point
+				# Refer ZachStateSpace.jpg in DailyNotes/September
+				
+				@show fieldnames(veh)
+				#"""Returns Symbol[:state,:def,:id]
+				@show fieldnames(veh.state)
+				#"""Returns Symbol[:posG,:posF,:v]
+
+				@show veh.state
+				@show veh.state.posG
+				@show fieldnames(veh.state.posF)
+				@show veh.state.posF
+				#@show fieldnames(env.roadway)
+				#@show env.roadway[veh.state.posF.roadind.tag]
+				#@show proj(veh.state.posG,env.roadway[veh.state.posF.roadind.tag],
+				#	   env.roadway)
+				@show Frenet(proj(veh.state.posG,
+						  env.roadway[ego_veh.state.posF.roadind.tag],
+						  env.roadway,move_along_curves=false),env.roadway)
 				@show ego_veh.state.posG
-				@show veh
+				@show ego_veh.state.posF
+
 			end
 		end
+		@show countVeh
+		@show totalVeh
 
 		seed = 15
 		srand(seed)
