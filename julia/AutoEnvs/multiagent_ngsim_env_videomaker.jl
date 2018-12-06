@@ -259,48 +259,58 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 	#--------------------ZACH--------------------------
 	
 	if i==1
-		#@show typeof(action[i,:])	
-		#@show action[i,:]
-		#@show AccelTurnrate
-		#@show typeof(ego_action)
-		#@show env.egoids
-		#@show ego_action
-		#@show fieldnames(ego_action)
-		##println("\nHey car 1")
-		#println("yo there")
-		
-		#@show fieldnames(env)
-		
-		#@show env.mdp
-		#@show env.policy
-		
-		#@show ego_veh.id
-		#@show ego_veh.state.posG
-		#@show ego_veh.state.posG.θ
-		#@show ego_veh.state.posG.x
-		#@show ego_veh.state.posG.y
-		#@show ego_veh.state.v
-
 		#println(ego_veh.state.posG.x,",",ego_veh.state.posG.y,",",ego_veh.state.posG.θ)
 		# """ To enable plotting on a spreadsheet"""
 		
 		#println(ego_veh.state.posF.s)
 		# """s gives distance along lane in the Frenet frame"""
 		
+		
+		# """Sample test code from Zach
+		#seed = 15
+		#srand(seed)
+		#n=5
+		#xs=rand(5).*100.0
+		#ys=rand(5).*4
+		#vels=1.0*randn(5).+30.0
+
+		x=150.0
+		t = x/30.0
+		
+		planner_egostate = CarPhysicalState(50.0,0.0,30.0,0.0,1)
+		# """CarPhysicalState is defined in Multilane.jl/src/MDP_types.jl
+		# The 5 elements in the struct are
+		# x (longitude), y (lane number), velocity, lane_change, id"""
+
+
+		planner_state=MLPhysicalState(x,t,[planner_egostate],nothing)
+		# """MLPhysicalState is defined in Multilane.jl/src/MDP_types.jl
+		# The 4 elements in the struct are
+		# x (longitude), t (time), cars (an array of CarPhysicalStates,terminal"""
+
+		#for j in 1:n
+		#	cs = CarPhysicalState(xs[j], ys[j], vels[j], 0.0, j+1)
+		#	push!(planner_state.cars,cs)
+		#end
+	
+		
 		countVeh = 0
 		totalVeh = 0
+		ego_roadind = ego_veh.state.posF.roadind # Will be needed for relative frenet
+		
+		# Will be needed to check if in same segment
+		ego_segment = ego_veh.state.posF.roadind.tag.segment
+
+		# Loop over all the vehicles in the scene
 		for veh in env.scene
-			totalVeh+=1
-			#@show veh
-			#@show ego_veh.state.posG
-			#@show veh.state.posG
-			typeof(ego_veh)
+			totalVeh+=1 #counts total number of vehs in scene
+			
+			# TODO Check if hypot is still used in the updated
+			# form of Vec.jl
 			distance = hypot(ego_veh.state.posG - veh.state.posG)
 			
 			# Find cars within a radius of 50 m from Zach
 			if distance < 50
-				#@show ego_veh.state.posG
-				#@show veh
 				countVeh+=1
 
 				# Need to find the longitudinal distance of
@@ -308,66 +318,78 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 				# lane unit relative to same point
 				# Refer ZachStateSpace.jpg in DailyNotes/September
 				
-				@show fieldnames(veh)
-				#"""Returns Symbol[:state,:def,:id]
-				@show fieldnames(veh.state)
-				#"""Returns Symbol[:posG,:posF,:v]
+				# """From projections.ipynb"""
+				# Check whether veh in same road segment as ego
+				veh_segment = veh.state.posF.roadind.tag.segment
+				veh_global = veh.state.posG
+				if veh_segment == ego_segment
+					@show "yomahesh"
+					
+					#"""get_frenet_relative_position
+					# is defined in src/2D/vehicles/scenes.jl
+					#Fields in relfre are
+					# origin, target, Delta_s, t, phi"""
+					relfre = get_frenet_relative_position(
+							veh_global,ego_roadind,
+							env.roadway)
+					
+					
+					#"""Positive is veh is front of ego"""
+					xdist = relfre.Δs
+					
+					#"""Positive if veh is left of ego"""
+					ydist = relfre.t
+					
+					@show ego_veh.state.posG
+					@show veh.state.posG
+					@show ego_veh.state.posF
+					@show veh.state.posF
 
-				@show veh.state
-				@show veh.state.posG
-				@show fieldnames(veh.state.posF)
-				@show veh.state.posF
-				#@show fieldnames(env.roadway)
+
+					@show relfre.Δs
+					@show relfre.t
+
+					#""" Transform to the reference frame of the
+					# MLPhysicalState
+					# Origin is 50 m behind ego and end of rightmost
+					# lane on the road"""
+					planner_x = xdist+50
+					
+					# TODO planner_y = 
+
+				else
+					# If not in the same segment don't
+					# consider the car in the input state
+					# to the planner
+					
+					@show "nope"
+					@show ego_segment
+					@show veh_segment
+				end
+
+
 				#@show env.roadway[veh.state.posF.roadind.tag]
 				#@show proj(veh.state.posG,env.roadway[veh.state.posF.roadind.tag],
 				#	   env.roadway)
-				@show Frenet(proj(veh.state.posG,
-						  env.roadway[ego_veh.state.posF.roadind.tag],
-						  env.roadway,move_along_curves=false),env.roadway)
-				@show ego_veh.state.posG
-				@show ego_veh.state.posF
+				#@show Frenet(proj(veh.state.posG,
+				#		  env.roadway[ego_veh.state.posF.roadind.tag],
+				#		  env.roadway,move_along_curves=false),env.roadway)
+				#@show ego_veh.state.posG
+				#@show ego_veh.state.posF
+	
 
-			end
-		end
+			end # Finish check to see if within 50m radius
+		end # Finish looping over all the vehicles in the scene
 		@show countVeh
 		@show totalVeh
-
-		seed = 15
-		srand(seed)
-		n=5
-		xs=rand(5).*100.0
-		ys=rand(5).*4
-		vels=1.0*randn(5).+30.0
-
-		x=150.0
-		t = x/30.0
-		
-		#println("\nHey again")
-		egostate = CarPhysicalState(50.0,0.0,30.0,0.0,1)
-		# """CarPhysicalState is defined in Multilane.jl/src/MDP_types.jl
-		# The 5 elements in the struct are
-		# x (longitude), y (lane number), velocity, lane_change, id"""
-
-
-		state=MLPhysicalState(x,t,[egostate],nothing)
-		# """MLPhysicalState is defined in Multilane.jl/src/MDP_types.jl
-		# The 4 elements in the struct are
-		# x (longitude), t (time), cars (an array of CarPhysicalStates,terminal"""
-
-		for j in 1:n
-			cs = CarPhysicalState(xs[j], ys[j], vels[j], 0.0, j+1)
-			push!(state.cars,cs)
-		end
-
-		planner_action = POMDPs.action(env.policy,state)
+		planner_action = POMDPs.action(env.policy,planner_state)
 		# planner_action is of type multilane.MLAction
 		# It has acc and ydot as the two things in it
-
+		
 		planner_accl = planner_action.acc
 		planner_ydot = planner_action.lane_change
 		#@show typeof(planner_action)
 		#@show planner_action
-		
 		#@show planner_accl
 		#@show planner_ydot
 		
@@ -375,9 +397,12 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		
 		#ego_action = AccelTurnrate([5.0, 0.0]...)
 		#println("ego_action after MLAction")
+		
+		
+
 		#@show ego_action
 
-	end
+	end #end check to see if this vehicle is driven using Zach
 	#--------------------------------------------------
 
 	# propagate the ego vehicle 
