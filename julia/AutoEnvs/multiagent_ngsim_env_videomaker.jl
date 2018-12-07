@@ -111,13 +111,23 @@ type MultiagentNGSIMEnvVideoMaker <: Env
         ego_vehs = [nothing for _ in 1:n_veh]
 
 	#--------------Zach stuff
+	
+		#------------- Heuristic
 	solver = SimpleSolver()
 	# """SimpleSolver is defined in Multilane.jl/src/heuristics.jl"""
 
-	#solver = MCTSSolver(
-	#		n_iterations=100, depth=10, 
-	#		exploration_constant=1.0, enable_tree_vis=true)
 	
+		#------------- MCTS with DPW assuming everyone else is normal
+	#dpws = DPWSolver(depth = 40,n_iterations = 1000,max_time=Inf,exploration_constant=8.0,
+	#		 k_state=4.5,alpha_state=1/10.0,enable_action_pw=false,
+	#		 check_repeat_state=false,estimate_value=RolloutEstimator(
+	#					SimpleSolver())
+	#		 )
+
+	#solver = SingleBehaviorSolver(dpws,Multilane.NORMAL)
+		#-----------------------------------------
+
+
 	cor = 0.75
 	behaviors = standard_uniform(correlation=cor)
 	pp = PhysicalParam(4, lane_length=100.0)
@@ -346,7 +356,7 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 				veh_segment = veh.state.posF.roadind.tag.segment
 				veh_global = veh.state.posG
 				if veh_segment == ego_segment
-					@show "yomahesh"
+					#@show "yomahesh"
 					
 					#"""get_frenet_relative_position
 					# is defined in src/2D/vehicles/scenes.jl
@@ -363,14 +373,14 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 					#"""Positive if veh is left of ego"""
 					ydist = relfre.t
 					
-					@show ego_veh.state.posG
-					@show veh.state.posG
-					@show ego_veh.state.posF
-					@show veh.state.posF
+					#@show ego_veh.state.posG
+					#@show veh.state.posG
+					#@show ego_veh.state.posF
+					#@show veh.state.posF
 
 
-					@show relfre.Δs
-					@show relfre.t
+					#@show relfre.Δs
+					#@show relfre.t
 
 					#""" Transform to the reference frame of the
 					# MLPhysicalState
@@ -386,7 +396,7 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 						planner_id_count+1)
 					
 					if ego_veh.state != veh.state
-						@show "ego veh found"
+					#	@show "ego veh found"
 						push!(planner_state.cars,cs)
 					end
 
@@ -398,15 +408,15 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 					# to the planner
 					
 					@show "nope"
-					@show ego_segment
-					@show veh_segment
+					#@show ego_segment
+					#@show veh_segment
 				end
 
 			end # Finish check to see if within 50m radius
 		end # Finish looping over all the vehicles in the scene
-		@show countVeh
-		@show totalVeh
-		@show planner_state
+		#@show countVeh
+		#@show totalVeh
+		#@show planner_state
 		planner_action = POMDPs.action(env.policy,planner_state)
 		# planner_action is of type multilane.MLAction
 		# It has acc and ydot as the two things in it
@@ -418,7 +428,7 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		#@show planner_accl
 		#@show planner_ydot
 		
-		ego_action = AccelTurnrate([planner_accl, planner_ydot]...)
+		ego_action = LatLonAccel([planner_accl, planner_ydot]...)
 		
 		#ego_action = AccelTurnrate([5.0, 0.0]...)
 		#println("ego_action after MLAction")
