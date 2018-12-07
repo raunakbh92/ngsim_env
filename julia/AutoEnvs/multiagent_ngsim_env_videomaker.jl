@@ -114,6 +114,10 @@ type MultiagentNGSIMEnvVideoMaker <: Env
 	solver = SimpleSolver()
 	# """SimpleSolver is defined in Multilane.jl/src/heuristics.jl"""
 
+	#solver = MCTSSolver(
+	#		n_iterations=100, depth=10, 
+	#		exploration_constant=1.0, enable_tree_vis=true)
+	
 	cor = 0.75
 	behaviors = standard_uniform(correlation=cor)
 	pp = PhysicalParam(4, lane_length=100.0)
@@ -274,16 +278,37 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		#ys=rand(5).*4
 		#vels=1.0*randn(5).+30.0
 
-		x=150.0
-		t = x/30.0
+		#x=150.0
+		#t = x/30.0
 		
-		planner_egostate = CarPhysicalState(50.0,0.0,30.0,0.0,1)
+		
+		# Get the x position of the ego vehicle
+		ego_x = ego_veh.state.posF.s
+		planner_t = env.t
+
+		# Will be needed for relative frenet
+		ego_roadind = ego_veh.state.posF.roadind		
+		
+		# Will be needed to check if in same segment
+		ego_segment = ego_veh.state.posF.roadind.tag.segment
+
+		# Get ego y position according to Zach frame
+		ego_lanenum = ego_veh.state.posF.roadind.tag.lane
+		ego_offset = ego_veh.state.posF.t
+		lanewidth = get_lane_width(ego_veh,env.roadway)
+		y_egoveh = (ego_lanenum-1)*lanewidth+ego_offset
+
+
+
+		planner_egostate = CarPhysicalState(
+					50.0,y_egoveh,ego_veh.state.v,0.0,1)
 		# """CarPhysicalState is defined in Multilane.jl/src/MDP_types.jl
 		# The 5 elements in the struct are
 		# x (longitude), y (lane number), velocity, lane_change, id"""
 
 
-		planner_state=MLPhysicalState(x,t,[planner_egostate],nothing)
+		planner_state=MLPhysicalState(
+					ego_x,planner_t,[planner_egostate],nothing)
 		# """MLPhysicalState is defined in Multilane.jl/src/MDP_types.jl
 		# The 4 elements in the struct are
 		# x (longitude), t (time), cars (an array of CarPhysicalStates,terminal"""
@@ -296,12 +321,10 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		
 		countVeh = 0
 		totalVeh = 0
-		ego_roadind = ego_veh.state.posF.roadind # Will be needed for relative frenet
+		planner_id_count = 1	# Functions like j in Zach's example code
 		
-		# Will be needed to check if in same segment
-		ego_segment = ego_veh.state.posF.roadind.tag.segment
-
-		# Loop over all the vehicles in the scene
+		# Loop over all the vehicles in the scene and insert those
+		# information who are within 50m radius of ego vehicle
 		for veh in env.scene
 			totalVeh+=1 #counts total number of vehs in scene
 			
@@ -355,7 +378,19 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 					# lane on the road"""
 					planner_x = xdist+50
 					
-					# TODO planner_y = 
+					planner_y = y_egoveh+ydist
+					@show planner_x, planner_y
+					
+					cs = CarPhysicalState(
+						planner_x, planner_y, veh.state.v, 0.0,
+						planner_id_count+1)
+					
+					if ego_veh.state != veh.state
+						@show "ego veh found"
+						push!(planner_state.cars,cs)
+					end
+
+					
 
 				else
 					# If not in the same segment don't
@@ -367,21 +402,11 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 					@show veh_segment
 				end
 
-
-				#@show env.roadway[veh.state.posF.roadind.tag]
-				#@show proj(veh.state.posG,env.roadway[veh.state.posF.roadind.tag],
-				#	   env.roadway)
-				#@show Frenet(proj(veh.state.posG,
-				#		  env.roadway[ego_veh.state.posF.roadind.tag],
-				#		  env.roadway,move_along_curves=false),env.roadway)
-				#@show ego_veh.state.posG
-				#@show ego_veh.state.posF
-	
-
 			end # Finish check to see if within 50m radius
 		end # Finish looping over all the vehicles in the scene
 		@show countVeh
 		@show totalVeh
+		@show planner_state
 		planner_action = POMDPs.action(env.policy,planner_state)
 		# planner_action is of type multilane.MLAction
 		# It has acc and ydot as the two things in it
@@ -389,7 +414,7 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		planner_accl = planner_action.acc
 		planner_ydot = planner_action.lane_change
 		#@show typeof(planner_action)
-		#@show planner_action
+		@show planner_action
 		#@show planner_accl
 		#@show planner_ydot
 		
@@ -617,7 +642,7 @@ function render(
 	
 	# ----------------ZACH------------------------
 	if veh.id == 2582
-		carcolors[veh.id] = colorant"yellow"
+		carcolors[veh.id] = colorant"cyan"
 		#println("Coloring Zach car yellow")
 	end
 	#--------------------------------------
