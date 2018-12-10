@@ -33,26 +33,34 @@ srand(seed)
 n = 5
 # x locations of n cars *relative to reference point*
 xs = rand(5).* 100.0
+@show xs
+
 # y locations of n cars # in lane units; not meters 
 ys = rand(5).* 4
+@show ys
+
 # velocities of n cars
 vels = 1.0*randn(5).+ 30.0
+@show vels
+
 
 x = 150.0 # *absolute* distance of ego car down the road
 t = x/30.0 # elapsed time
 egostate = CarPhysicalState(50.0, 0.0, 30.0, 0.0, 1) # ego state always has the same x because  
 state = MLPhysicalState(x, t, [egostate], nothing)
+@show state
 
 for i in 1:n
 	cs = CarPhysicalState(xs[i], ys[i], vels[i], 0.0, i+1)
 	push!(state.cars, cs)
+	@show state
 end
 
-println("Here are the states \n")
-@show state
+#println("Here are the states \n")
+#@show state
 
-println("Here is the policy \n")
-@show policy
+#println("Here is the policy \n")
+#@show policy
 
 # get an action from the policy
 a = action(policy, state)

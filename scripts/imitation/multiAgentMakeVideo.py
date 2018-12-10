@@ -43,22 +43,28 @@ multi = True
 #			FUNCTION: MULTIAGENT SIMULATE
 #-----------------------------------------------------------------------------
 def mutliagent_simulate(env, policy, max_steps, env_kwargs=dict(), render_kwargs=dict()):
-    x = env.reset(**env_kwargs)
+    x = env.reset(**env_kwargs) 
+    # x is a (100,66) numpy array of features where 100 is number of policy driven
+    # vehicles and 66 is the number of features
+    
     n_agents = x.shape[0]
     traj = hgail.misc.simulation.Trajectory()
     dones = [True] * n_agents
     policy.reset(dones)
     imgs = []
     for step in range(max_steps):
-        sys.stdout.write('\rstep: {} / {}'.format(step+1, max_steps))
-        a, a_info = policy.get_actions(x)
+        #sys.stdout.write('\rstep: {} / {}'.format(step+1, max_steps))
+        a, a_info = policy.get_actions(x) 
+        # a is a (100,2) numpy array of actions where 100 is number of policy
+        # driven vehicles and 2 is acceleration and turn rate
         
         #************************** Raunak tinkering
+        # Negative value for second component of action turns it to right
+
         #print(a[0][1])
-        a[0][0] =  5.0  # Slows car down and then makes it drive in reverse
-        #a[0][1] = - 2.0   # Turns car to the right
-        #print("videomaker action shape ",a.shape)
-        #print("action from python videomaker\n = ",a)
+        a[0][0] =0.0  
+        a[0][1] = 0.1  
+        #print("\naction for car 1 from python videomaker = ",a[0])
 
         #*************************************************
         nx, r, dones, e_info = env.step(a)
