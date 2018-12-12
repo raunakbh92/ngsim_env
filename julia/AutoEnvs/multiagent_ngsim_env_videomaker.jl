@@ -408,22 +408,19 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		# It has acc and ydot as the two things in it
 		
 		planner_accl = planner_action.acc
-		planner_ydot = planner_action.lane_change
+		planner_latvel = planner_action.lane_change
 		#@show typeof(planner_action)
 		@show planner_action
 		#@show planner_accl
 		#@show planner_ydot
-		
-		# TODO: Verify this works as opposed to AccelTurnrate
-		ego_action = LatLonAccel([planner_accl, planner_ydot]...)
-		
-		#ego_action = AccelTurnrate([5.0, 0.0]...)
-		#println("ego_action after MLAction")
-		
-		
 
-		#@show ego_action
+		v = ego_veh.state.v
+		phi = ego_veh.state.posF.ϕ
+		dt = 1 #TODO Investigate why env.Δt does not do well here (causes oscillation)
+		lat_accel = (2/(dt*dt))*(planner_latvel*dt - v*sin(phi)*dt)
 
+		ego_action = LatLonAccel([lat_accel, planner_accl]...)
+		
 	end #end check to see if this vehicle is driven using Zach
 	#--------------------------------------------------
 
