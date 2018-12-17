@@ -57,6 +57,7 @@ type MultiagentNGSIMEnvVideoMaker <: Env
     pomdp::NoCrashPOMDP
     mdp::NoCrashMDP
     policy
+    viz_states
     ##--------------------
 
 
@@ -144,6 +145,7 @@ type MultiagentNGSIMEnvVideoMaker <: Env
 	pomdp = NoCrashPOMDP{typeof(rmodel), typeof(behaviors)}(dmodel, rmodel, 0.95, false)
 	mdp = NoCrashMDP{typeof(rmodel), typeof(behaviors)}(dmodel, rmodel, 0.95, false)
 	policy = solve(solver,mdp)
+	viz_states = MLPhysicalState[]
 
 	#--------------------------------
 
@@ -160,7 +162,7 @@ type MultiagentNGSIMEnvVideoMaker <: Env
             n_veh, remove_ngsim_veh, features,
             0, render_params, infos_cache
 	    #-----------Zach-------------------------------------------
-	    ,solver,cor,behaviors,pp,dmodel,rmodel,pomdp,mdp,policy
+	    ,solver,cor,behaviors,pp,dmodel,rmodel,pomdp,mdp,policy,viz_states
 	    #----------------------------------------------------------
         )
 
@@ -278,24 +280,6 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 	#--------------------ZACH--------------------------
 	
 	if i==1
-		#println(ego_veh.state.posG.x,",",ego_veh.state.posG.y,",",ego_veh.state.posG.θ)
-		# """ To enable plotting on a spreadsheet"""
-		
-		#println(ego_veh.state.posF.s)
-		# """s gives distance along lane in the Frenet frame"""
-		
-		
-		# """Sample test code from Zach
-		#seed = 15
-		#srand(seed)
-		#n=5
-		#xs=rand(5).*100.0
-		#ys=rand(5).*4
-		#vels=1.0*randn(5).+30.0
-
-		#x=150.0
-		#t = x/30.0
-		
 		
 		# TODO Get the x position of the ego vehicle (properly)
 		ego_x = ego_veh.state.posF.s
@@ -311,9 +295,11 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		ego_lanenum = ego_veh.state.posF.roadind.tag.lane
 		ego_offset = ego_veh.state.posF.t
 		lanewidth = get_lane_width(ego_veh,env.roadway)
-		y_egoveh = (ego_lanenum-1)*lanewidth+ego_offset
-
-
+		
+		# Commented out line gives in metres and not lane units
+		#y_egoveh = (ego_lanenum-1)*lanewidth+ego_offset
+		# TODO Verify correctness
+		y_egoveh = ego_lanenum + ego_offset/lanewidth
 
 		planner_egostate = CarPhysicalState(
 					50.0,y_egoveh,ego_veh.state.v,0.0,1)
@@ -328,11 +314,6 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		# The 4 elements in the struct are
 		# x (longitude), t (time), cars (an array of CarPhysicalStates,terminal"""
 
-		#for j in 1:n
-		#	cs = CarPhysicalState(xs[j], ys[j], vels[j], 0.0, j+1)
-		#	push!(planner_state.cars,cs)
-		#end
-	
 		
 		countVeh = 0
 		totalVeh = 0
@@ -363,7 +344,6 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 				veh_segment = veh.state.posF.roadind.tag.segment
 				veh_global = veh.state.posG
 				if veh_segment == ego_segment
-					#@show "yomahesh"
 					
 					#"""get_frenet_relative_position
 					# is defined in src/2D/vehicles/scenes.jl
@@ -372,7 +352,6 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 					relfre = get_frenet_relative_position(
 							veh_global,ego_roadind,
 							env.roadway)
-					
 					
 					#"""Positive if veh is front of ego"""
 					xdist = relfre.Δs
@@ -385,13 +364,17 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 					# Origin is 50 m behind ego and end of rightmost
 					# lane on the road"""
 					planner_x = xdist+50
-					
-					planner_y = y_egoveh+ydist
+				
+					# TODO Verify that division by lanewidth is okay
+					planner_y = y_egoveh+ydist/lanewidth
 					#@show planner_x, planner_y
-					
+				
+					# TODO Correct id for car
+					# TODO Lane change arg needs to be lateral vel not 0 
 					cs = CarPhysicalState(
 						planner_x, planner_y, veh.state.v, 0.0,
-						planner_id_count+1)
+						#planner_id_count+1
+						veh.id)
 					
 					planner_id_count += 1
 					push!(planner_state.cars,cs)
@@ -403,6 +386,13 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		#@show countVeh
 		#@show totalVeh
 		@show planner_state
+
+		# Writing to JLD file with goal of loading into notebook for vis
+		#f = jldopen("zach_state_vis.jld", "r+")
+		#	write(f, "planner_state", planner_state)
+		#end
+		push!(env.viz_states,planner_state)
+
 		planner_action = POMDPs.action(env.policy,planner_state)
 		# planner_action is of type multilane.MLAction
 		# It has acc and ydot as the two things in it
@@ -517,7 +507,9 @@ function Base.step(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 	#@show action
 	
 	step_infos = _step!(env, action)
-    
+   
+	JLD.save("zach_state_viz.jld","states_over_time",env.viz_states)
+
 	# compute features and feature_infos 
 	features = get_features(env)
 	feature_infos = _compute_feature_infos(env, features)
