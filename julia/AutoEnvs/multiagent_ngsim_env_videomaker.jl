@@ -58,6 +58,7 @@ type MultiagentNGSIMEnvVideoMaker <: Env
     mdp::NoCrashMDP
     policy
     viz_states
+    randomseed	# Input from multiAgentMakeVideo.py to use jld naming
     ##--------------------
 
 
@@ -136,7 +137,12 @@ type MultiagentNGSIMEnvVideoMaker <: Env
 
 	cor = 0.75
 	behaviors = standard_uniform(correlation=cor)
-	pp = PhysicalParam(4, lane_length=100.0)
+	
+	# TODO Verify lane width, vehicle length and vehicle width
+	# First argument is the number of lanes
+	pp = PhysicalParam(5, lane_length=100.0,
+			   w_lane = 3.0,w_car = 1.8, l_car = 4.0)
+
 	dmodel = NoCrashIDMMOBILModel(10,pp,behaviors=behaviors,p_appear=1.0,
 				      lane_terminate=true,max_dist=1000.0,
 				      brake_terminate_thresh=4.0,
@@ -146,6 +152,7 @@ type MultiagentNGSIMEnvVideoMaker <: Env
 	mdp = NoCrashMDP{typeof(rmodel), typeof(behaviors)}(dmodel, rmodel, 0.95, false)
 	policy = solve(solver,mdp)
 	viz_states = MLPhysicalState[]
+	randomseed = 1000000
 
 	#--------------------------------
 
@@ -162,7 +169,8 @@ type MultiagentNGSIMEnvVideoMaker <: Env
             n_veh, remove_ngsim_veh, features,
             0, render_params, infos_cache
 	    #-----------Zach-------------------------------------------
-	    ,solver,cor,behaviors,pp,dmodel,rmodel,pomdp,mdp,policy,viz_states
+	    ,solver,cor,behaviors,pp,dmodel,rmodel,
+	    pomdp,mdp,policy,viz_states,randomseed
 	    #----------------------------------------------------------
         )
 
@@ -251,7 +259,16 @@ function reset(
     env.t += env.primesteps + 1
     # enforce a maximum horizon 
     env.h = min(env.h, env.t + env.H)
+
+    #--------------------Zach-------------------
+    # Will be used to write the jld file containing
+    # the planner states to be plotted using 
+    # zach visualization
+    env.randomseed = random_seed
+    #-------------------------------------------
+    
     return get_features(env)
+
 end 
 
 #=
@@ -355,10 +372,18 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 					
 					#"""Positive if veh is front of ego"""
 					xdist = relfre.Δs
-					
 					#"""Positive if veh is left of ego"""
 					ydist = relfre.t
+				
+					#if xdist > 0
+					#	@show env.t
+					#	@show veh.id
+					#	@show xdist
+					#	@show ydist
+					#end
+
 					
+
 					#""" Transform to the reference frame of the
 					# MLPhysicalState
 					# Origin is 50 m behind ego and end of rightmost
@@ -385,12 +410,7 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		end # Finish looping over all the vehicles in the scene
 		#@show countVeh
 		#@show totalVeh
-		@show planner_state
-
-		# Writing to JLD file with goal of loading into notebook for vis
-		#f = jldopen("zach_state_vis.jld", "r+")
-		#	write(f, "planner_state", planner_state)
-		#end
+		#@show planner_state
 		push!(env.viz_states,planner_state)
 
 		planner_action = POMDPs.action(env.policy,planner_state)
@@ -398,11 +418,11 @@ function _step!(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 		# It has acc and ydot as the two things in it
 		
 		planner_accl = planner_action.acc
-		planner_latvel = planner_action.lane_change
-		#@show typeof(planner_action)
-		@show planner_action
-		#@show planner_accl
-		#@show planner_ydot
+		planner_latvel = 3.0*planner_action.lane_change #3.0 is lanewidth 
+		
+		#TODO Check lane width 3.0 is accurate
+		
+		#@show planner_action
 
 		v = ego_veh.state.v
 		phi = ego_veh.state.posF.ϕ
@@ -507,8 +527,12 @@ function Base.step(env::MultiagentNGSIMEnvVideoMaker, action::Array{Float64})
 	#@show action
 	
 	step_infos = _step!(env, action)
-   
-	JLD.save("zach_state_viz.jld","states_over_time",env.viz_states)
+
+	# TODO If else conditions for name change
+	#	According to solver choice
+	#	And according to seed chosen in multiAgentMakeVideo.py 
+	JLD.save(string("zach_state_viz_",(env.randomseed),"_heuristic.jld"),
+		 "states_over_time",env.viz_states)
 
 	# compute features and feature_infos 
 	features = get_features(env)
@@ -545,14 +569,6 @@ function _compute_feature_infos(env::MultiagentNGSIMEnvVideoMaker, features::Arr
     # Raunak explains: env.n_veh will be number of policy driven cars
     # Caution: This need not be the same as number of cars in the scene
     # Because the scene contains both policy driven cars and ngsim replay cars
-
-    # Raunak debugging
-    #sizeFeatures=size(features)
-    #println("Compute repoting featurs are \n $sizeFeatures")
-    #something = env.infos_cache
-    #println("env.infos_cache =\n $something")
-    #somethingelse = env.infos_cache["is_colliding_idx"]
-    #println("env.infos_cache[is_colliding_idx]=$somethingelse")
 
     for i in 1:env.n_veh
 	is_colliding = features[i, env.infos_cache["is_colliding_idx"]]
@@ -627,7 +643,7 @@ function render(
 	carcolors[veh.id] = in(veh.id, env.egoids) ? egocolor : colorant"green"
 	
 	# ----------------ZACH------------------------
-	if veh.id == 2582
+	if veh.id == env.ego_vehs[1].id
 		carcolors[veh.id] = colorant"cyan"
 		#println("Coloring Zach car yellow")
 	end
@@ -639,9 +655,9 @@ function render(
 	end
 
 	# If current vehicle is in the list of offroad vehicles color it yellow
-	if in(veh.id,infos["offroad_veh_ids"])
-		carcolors[veh.id]=ColorTypes.RGB([1.,1.,0.]...)
-	end
+	#if in(veh.id,infos["offroad_veh_ids"])
+	#	carcolors[veh.id]=ColorTypes.RGB([1.,1.,0.]...)
+	#end
 
 	# If current vehicle is in the list of hard brakers then color it light blue
 	#if in(veh.id,infos["hardbrake_veh_ids"])

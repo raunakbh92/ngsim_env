@@ -202,9 +202,9 @@ def do_it_all_once(model_labels, model_args_filepaths, model_params_filepaths,
         blit=True
     )
 
-    WriterClass = animation.writers['ffmpeg']
+    WriterClass = animation.writers['imagemagick']#ffmpeg/imagemagick for .mp4/.gif as needed
     writer = WriterClass(fps=10, metadata=dict(artist='bww'), bitrate=1800)
-    anim.save('../../data/media/' + name + '.mp4', writer=writer)
+    anim.save('../../data/media/zach/' + name + '.gif', writer=writer) # .mp4/.gif as needed
     print("Saved: ", name)
 
     HTML(anim.to_html5_video())
@@ -215,7 +215,7 @@ def do_it_all_once(model_labels, model_args_filepaths, model_params_filepaths,
 #-----------------------------------------------------------------------------
 for i in range(1):
     print("\Run number: ", i)
-    seed = 2
+    seed = int(sys.argv[1]) #argv[0] will be the name of this file itself
     for j in [1]: #number of models to 'average'
         indx = (j-1)*2
         name = "-".join(model_labels[indx:indx+1])+'_'+str(i)+"_"+str(seed)
