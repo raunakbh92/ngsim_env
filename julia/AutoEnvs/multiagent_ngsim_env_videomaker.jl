@@ -132,6 +132,7 @@ function reset(
 
     # sample multiple ego vehicles
     # as stated above, these will all end at the same timestep
+    # The function called is defined in Autoenvs/ngsim_env_utils.py
     env.traj_idx, env.egoids, env.t, env.h = sample_multiple_trajdata_vehicle(
         env.n_veh,
         env.trajinfos, 
