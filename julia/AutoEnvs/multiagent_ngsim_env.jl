@@ -388,8 +388,7 @@ function render(
         error("invalid camera type $(camtype)")
     end
     stats = [
-        CarFollowingStatsOverlay(env.egoids[1], 2), 
-        NeighborsOverlay(env.egoids[1], textparams = TextParams(x = 600, y_start=300))
+        CarFollowingStatsOverlay(env.egoids[1], 2) 
     ]
 
 #    # rendermodel for optional rotation
@@ -411,6 +410,9 @@ function render(
     )
 #
 #    # save the frame 
+
+#-------------------------Commented out to work with Reel------------------
+"""
     if !isdir(env.render_params["viz_dir"])
         mkdir(env.render_params["viz_dir"])
     end
@@ -424,5 +426,8 @@ function render(
 #    # load and return the frame as an rgb array
     img = PyPlot.imread(filepath)
     return img
+"""
+#----------------------------------------------------------------
+    return frame
 end
 #
